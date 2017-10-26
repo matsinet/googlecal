@@ -1,0 +1,175 @@
+<html>
+<head>
+    <title>Google Calendar API Example</title>
+    <meta charset='utf-8' />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.2.13/dist/semantic.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.2.13/dist/semantic.min.js"></script>
+</head>
+<body>
+<div class="ui container">
+    <div class="column">
+        <h1 class="ui header">Google Calendar API Example</h1>
+
+        <!--Add buttons to initiate auth sequence and sign out-->
+        <button id="authorize-button" style="display: none;" class="ui button">Authorize</button>
+        <button id="signout-button" style="display: none;" class="ui button">Sign Out</button>
+
+        <h3 class="ui header">Upcoming events:</h3>
+    </div>
+    <div id="content" class="ui cards"></div>
+</div>
+
+<script type="text/javascript">
+    var CLIENT_ID = '17312885620-q08j0p5l4ok3m4q12s7nk275s5bd998b.apps.googleusercontent.com';
+
+    var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+
+    var SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+
+    var authorizeButton = document.getElementById('authorize-button');
+    var signoutButton = document.getElementById('signout-button');
+
+    /**
+     *  On load, called to load the auth2 library and API client library.
+     */
+    function handleClientLoad() {
+        gapi.load('client:auth2', initClient);
+    }
+
+    /**
+     *  Initializes the API client library and sets up sign-in state
+     *  listeners.
+     */
+    function initClient() {
+        gapi.client.init({
+            discoveryDocs: DISCOVERY_DOCS,
+            clientId: CLIENT_ID,
+            scope: SCOPES
+        }).then(function () {
+            // Listen for sign-in state changes.
+            gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+            // Handle the initial sign-in state.
+            updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+            authorizeButton.onclick = handleAuthClick;
+            signoutButton.onclick = handleSignoutClick;
+        });
+    }
+
+    /**
+     *  Called when the signed in status changes, to update the UI
+     *  appropriately. After a sign-in, the API is called.
+     */
+    function updateSigninStatus(isSignedIn) {
+        if (isSignedIn) {
+            authorizeButton.style.display = 'none';
+            signoutButton.style.display = 'block';
+            listUpcomingEvents();
+        } else {
+            authorizeButton.style.display = 'block';
+            signoutButton.style.display = 'none';
+        }
+    }
+
+    /**
+     *  Sign in the user upon button click.
+     */
+    function handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+    }
+
+    /**
+     *  Sign out the user upon button click.
+     */
+    function handleSignoutClick(event) {
+        gapi.auth2.getAuthInstance().signOut();
+    }
+
+    /**
+     * Append a pre element to the body containing the given message
+     * as its text node. Used to display the results of the API call.
+     *
+     * @param {string} message Text to be placed in pre element.
+     */
+    function appendPre(message) {
+        var pre = document.getElementById('content');
+        var textContent = document.createTextNode(message + '\n');
+        pre.appendChild(textContent);
+    }
+
+    function appendCard(data) {
+        var div = document.getElementById('content');
+        var card = document.createElement('div');
+        card.classList = 'ui card';
+
+        var content = document.createElement('div');
+        content.classList = 'content';
+
+
+        var header = document.createElement('div');
+        header.classList = 'header';
+        header.innerHTML = data.summary;
+        content.appendChild(header);
+
+        var start = data.start.dateTime ? data.start.dateTime : data.start.date;
+        var end = data.end.dateTime ? data.end.dateTime : data.end.date;
+
+        var meta = document.createElement('div');
+        meta.classList = 'meta';
+        meta.innerHTML = '<span class="date">' + start + '-' + end + '</span>';
+        content.appendChild(meta);
+
+        var description = document.createElement('div');
+        description.classList = 'description';
+        description.innerHTML = data.description ? data.description : '';
+        content.appendChild(description);
+
+        var extra = document.createElement('div');
+        extra.classList = 'extra content';
+        extra.innerHTML = data.location ? data.location : '';
+        content.appendChild(extra);
+
+        card.appendChild(content);
+        div.appendChild(card);
+    }
+
+    /**
+     * Print the summary and start datetime/date of the next ten events in
+     * the authorized user's calendar. If no events are found an
+     * appropriate message is printed.
+     */
+    function listUpcomingEvents() {
+        gapi.client.calendar.events.list({
+            'calendarId': 'primary',
+            //'calendarId': 'bsp5aq5h5vt4gjcci14kaeroa0@group.calendar.google.com',
+            'timeMin': (new Date()).toISOString(),
+            'showDeleted': false,
+            'singleEvents': true,
+            'maxResults': 50,
+            'orderBy': 'startTime'
+        }).then(function(response) {
+            var events = response.result.items;
+
+            if (events.length > 0) {
+                for (i = 0; i < events.length; i++) {
+                    var event = events[i];
+                    appendCard(event);
+                }
+            } else {
+                appendPre('No upcoming events found.');
+            }
+        });
+    }
+
+</script>
+
+<script async defer src="https://apis.google.com/js/api.js"
+        onload="this.onload=function(){};handleClientLoad()"
+        onreadystatechange="if (this.readyState === 'complete') this.onload()">
+</script>
+</body>
+</html>
+
